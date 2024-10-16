@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 import { CLIPConfig } from 'src/dtos/model-config.dto';
+import { ILoggerRepository } from 'src/interfaces/logger.interface';
 import {
   ClipTextualResponse,
   ClipVisualResponse,
@@ -19,12 +20,34 @@ const errorPrefix = 'Machine learning request';
 @Instrumentation()
 @Injectable()
 export class MachineLearningRepository implements IMachineLearningRepository {
+  constructor(@Inject(ILoggerRepository) private logger: ILoggerRepository) {
+    this.logger.setContext(MachineLearningRepository.name);
+  }
+
+  private async find_working_server(url: string): Promise<string> {
+    const paths = url.split(';').map((item) => item.trim());
+    for (const path of paths) {
+      const r = await fetch(path, { method: 'GET' }).catch((error: Error | any) => {
+        this.logger.warn(`${errorPrefix} ping to "${path}" failed with ${error?.cause || error}`);
+        return { status: 0, text: 'nop' };
+      });
+      if (r.status == 200) {
+        this.logger.debug(`Response from ${path}`);
+        return path;
+      }
+    }
+    throw new Error(`${errorPrefix}: no machine learning server found.`);
+  }
+
   private async predict<T>(url: string, payload: ModelPayload, config: MachineLearningRequest): Promise<T> {
     const formData = await this.getFormData(payload, config);
 
-    const res = await fetch(new URL('/predict', url), { method: 'POST', body: formData }).catch(
+    this.logger.debug(`Predicting with ${url.split(';')}`);
+    const workingurl = await this.find_working_server(url);
+
+    const res = await fetch(new URL('/predict', workingurl), { method: 'POST', body: formData }).catch(
       (error: Error | any) => {
-        throw new Error(`${errorPrefix} to "${url}" failed with ${error?.cause || error}`);
+        throw new Error(`${errorPrefix} to "${workingurl}" failed with ${error?.cause || error}`);
       },
     );
 
