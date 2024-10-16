@@ -261,8 +261,9 @@ class SystemConfigMachineLearningDto {
   @ValidateBoolean()
   enabled!: boolean;
 
-  @IsUrl({ require_tld: false, allow_underscores: true })
-  @ValidateIf((dto) => dto.enabled)
+  //@IsUrl({ require_tld: false, allow_underscores: true })
+  //@ValidateIf((dto) => dto.enabled)
+  @IsString()
   url!: string;
 
   @Type(() => CLIPConfig)
