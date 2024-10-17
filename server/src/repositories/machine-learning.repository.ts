@@ -27,7 +27,7 @@ export class MachineLearningRepository implements IMachineLearningRepository {
   private async find_working_server(url: string): Promise<string> {
     const paths = url.split(';').map((item) => item.trim());
     for (const path of paths) {
-      const r = await fetch(path, { method: 'GET' }).catch((error: Error | any) => {
+      const r = await fetch(path, { method: 'GET', signal: AbortSignal.timeout(200) }).catch((error: Error | any) => {
         this.logger.warn(`${errorPrefix} ping to "${path}" failed with ${error?.cause || error}`);
         return { status: 0, text: 'nop' };
       });
